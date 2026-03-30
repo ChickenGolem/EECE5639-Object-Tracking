@@ -30,8 +30,8 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
     target_hue = hsv_value[0]
     match (filter_type):
         case 1: #if everything is in range
-            lower = np.array([target_hue - 3, 100, 100])
-            upper = np.array([target_hue + 3, 255, 255])
+            lower = np.array([target_hue - 15, 100, 100])
+            upper = np.array([target_hue + 15, 255, 255])
             mask = cv2.inRange(hsv, lower, upper)
 
         case 2: #if it is out of range in the lower zone
@@ -58,6 +58,9 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
     mask = cv2.morphologyEx(pre_mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     """
+    
+    mask = noise_filter(mask, method="gaussion")
+    
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if contours:
@@ -72,7 +75,9 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
             x, y, w, h = cv2.boundingRect(largest)
 
             cv2.rectangle(low_res_img, (x, y), (x+w, y+h), (0,255,0), 2)
-
+            
+            zoomed = digital_zoom(low_res_img, x, y, w, h, zoom_factor=2.0)
+            cv2.imshow("zoomed", zoomed)
     #disp stuff
     cv2.imshow("test",low_res_img)
     cv2.imshow("mymask :)",mask)
@@ -80,7 +85,31 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
     cv2.destroyAllWindows()
     return(x,y) #returns x and y cords of the centroid program id'd
 
+def noise_filter(mask, method="gaussion"):
+    if method == "gaussion":
+        blurred = cv2.GaussianBlur(mask, (5, 5), 0)
+        _, cleaned = cv2.threshold(blurred, 127, 255, cv2.THRESH_BINARY)
+    elif method == "median":
+        cleaned = cv2.medianBlur(mask, 5)
+    
+    return cleaned
+
+def digital_zoom(image, x, y, w, h, zoom_factor=2.0, padding=30):
+    img_h, img_w = image.shape[:2]
+    x1 = max(0, x - padding)
+    y1 = max(0, y - padding)
+    x2 = min(img_w, x + w + padding)
+    y2 = min(img_h, y + h + padding)
+    
+    cropped = image[y1:y2, x1:x2]
+    
+    new_w = int(cropped.shape[1] * zoom_factor)
+    new_h = int(cropped.shape[0] * zoom_factor)
+    zoomed = cv2.resize(cropped, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    
+    return zoomed
+    
+
 hsv_value = user_inputs()
 print(hsv_value)
-print(HSV_Conversion("tennis.jpg", hsv_value, filter_type))
-
+print(HSV_Conversion("feetball.jpg", hsv_value, filter_type))
