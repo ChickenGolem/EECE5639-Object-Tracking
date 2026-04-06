@@ -27,7 +27,7 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
     low_res_img = cv2.resize(image, (640, 480), interpolation=cv2.INTER_AREA) #makes image lower quality so can run faster
     hsv = cv2.cvtColor(low_res_img, cv2.COLOR_BGR2HSV) #converts to HSV
 
-    target_hue = hsv_value[0]
+    target_hue = int(hsv_value[0])
     match (filter_type):
         case 1: #if everything is in range
             lower = np.array([target_hue - 15, 50, 50])
@@ -116,4 +116,4 @@ def digital_zoom(image, x, y, w, h, zoom_factor=2.0, padding=30):
 
 hsv_value = user_inputs()
 print(hsv_value)
-print(HSV_Conversion("better-tennis.jpg", hsv_value, filter_type))
+print(HSV_Conversion("feetball_midair.jpg", hsv_value, filter_type))
