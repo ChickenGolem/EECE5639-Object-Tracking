@@ -1,6 +1,10 @@
 import cv2
 from pathlib import Path
 import numpy as np
+import math
+
+alpha = .3
+# controls whether distance from last centroid or size matters more. Lower = distance, Higher = size
 
 def user_inputs():
     rgb_wanted = input("Please input what rgb you want in this format r g b : ")
@@ -15,7 +19,7 @@ def user_inputs():
 
     return hsv_value
 
-def HSV_Conversion(image_to_convert, hsv_value, filter_type):
+def HSV_Conversion(image_to_convert, hsv_value, filter_type, last_i, last_j):
 
     IMG_DIR = Path(__file__).resolve().parent / str(image_to_convert)#this way of accessing images is kinda temp
     image = cv2.imread(str(IMG_DIR))
@@ -68,7 +72,11 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
         cv2.destroyAllWindows()
         return None
 
-    largest = max(contours, key=cv2.contourArea)
+    if last_i != None and last_j != None:
+        largest = max(contours, key=lambda contour: score_contour_normalized(contour, last_i, last_j, contours, alpha))
+        print("\n")
+    else:
+        largest = max(contours, key=cv2.contourArea)
     M = cv2.moments(largest)
 
     if M["m00"] != 0:
@@ -87,6 +95,28 @@ def HSV_Conversion(image_to_convert, hsv_value, filter_type):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     return (cx, cy) #returns x and y cords of the centroid program id'd
+
+def score_contour_normalized(contour, last_i, last_j, contours, alpha=0.5):
+    M = cv2.moments(contour)
+    if M["m00"] == 0:
+        return float('-inf') # if this is true then the contour isn't a blob, more of a line
+    cx = int(M["m10"] / M["m00"]) 
+    cy = int(M["m01"] / M["m00"]) # gives image cords of centroid
+    area = cv2.contourArea(contour) 
+    distance = math.sqrt((cx - last_i)**2 + (cy - last_j)**2) # gets distance of centroid from last centroid point
+
+    max_area = max(cv2.contourArea(c) for c in contours) # finds contour with biggest area and farthest away contour
+    max_dist = max(
+        math.sqrt((int(cv2.moments(c)["m10"] / max(cv2.moments(c)["m00"], 1)) - last_i)**2 
+            +(int(cv2.moments(c)["m01"] / max(cv2.moments(c)["m00"], 1)) - last_j)**2) for c in contours
+    ) or 1
+
+    norm_area = area / max_area          #normalizes both area and distance
+    norm_dist = 1 - distance / max_dist  
+
+    score = alpha * norm_area + (1 - alpha) * norm_dist # finds the one we want using alpha, lower alpha distance > area, bigger alpha area > distance.
+    print(f"[{cx},{cy}] has score of : {score}")
+    return score
 
 def noise_filter(mask, method="gaussian"):
     if method == "gaussian":
@@ -116,4 +146,6 @@ def digital_zoom(image, x, y, w, h, zoom_factor=2.0, padding=30):
 
 hsv_value = user_inputs()
 print(hsv_value)
-print(HSV_Conversion("feetball_midair.jpg", hsv_value, filter_type))
+last_values = (HSV_Conversion("roll_1.jpg", hsv_value, filter_type, None, None))
+last_calues = HSV_Conversion("roll_2.jpg", hsv_value, filter_type, last_values[0], last_values[1])
+HSV_Conversion("roll_3.jpg", hsv_value, filter_type, last_values[0], last_values[1])
